@@ -1,0 +1,298 @@
+
+---
+title: "Transposable elements expression in Zebrafish brain"
+author: "David Cáceres"
+date: "2023-02-08"
+output:
+  pdf_document: 
+    toc: yes
+    toc_depth: 2
+    fig_height: 4
+    fig_width: 6
+  html_document:
+    fig_caption: yes
+    toc: yes
+    toc_depth: 2
+    latex_engine: xelatex
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, root.dir ="~/Exosomas/QC/Data/",
+                      tidy.opts=list(width.cutof=30),tidy=TRUE,
+                      comment = NULL, cache = TRUE,dev = 'pdf')
+```
+
+```{r}
+library(GEOquery)
+library(base)
+library(Seurat)
+library(ggplot2)
+library(SingleR)
+library(shinycssloaders)
+library(DT)
+library(dplyr)
+library(shiny)
+library(URD)
+library(rtracklayer)
+
+
+```
+
+
+```{r}
+data_dir <- '/home/david/Documentos/Transposable elements/data/GSM4793196/'
+list.files(data_dir) # Should show barcodes.tsv, genes.tsv, and matrix.mtx
+expression_matrix <- Read10X(data.dir = data_dir)
+seurat_object1 = CreateSeuratObject(counts = expression_matrix, project = "ZB24h")
+
+data_dir <- '/home/david/Documentos/Transposable elements/data/GSM4793197/'
+list.files(data_dir) # Should show barcodes.tsv, genes.tsv, and matrix.mtx
+expression_matrix <- Read10X(data.dir = data_dir)
+seurat_object2 = CreateSeuratObject(counts = expression_matrix, project = "ZB24h")
+
+data_dir <- '/home/david/Documentos/Transposable elements/data/GSM4793198/'
+list.files(data_dir) # Should show barcodes.tsv, genes.tsv, and matrix.mtx
+expression_matrix <- Read10X(data.dir = data_dir)
+seurat_object3 = CreateSeuratObject(counts = expression_matrix, project = "ZB24h")
+```
+
+
+```{r}
+srat2 <- merge(seurat_object1, y = c(seurat_object2, seurat_object3), add.cell.ids = c("3.6K", "3.8K", "1.9K"), project = "ZB24h")
+
+```
+
+
+```{r}
+
+# COmpruebo la cantiudad de genes mitocondriales mapeados (contienen "MT-")
+
+srat[["percent.mt"]] <- PercentageFeatureSet(srat, pattern = "^MT-")
+
+sum(srat$percent.mt)
+
+# No tenemos genes mitocondriales.
+
+
+
+VlnPlot(srat, features = c("nFeature_RNA", "nCount_RNA"), ncol = 2)
+```
+
+
+```{r}
+cluster24<-readRDS("/home/david/Documentos/zf_brain/data/GSE158142_zf24hpf_cc_filt.cluster.rds")
+
+slot(cluster24, "data")@Dimnames[[2]]
+```
+
+```{r}
+
+View(as.data.frame(slot(cluster24, "raw.data")))
+
+library(xlsx)
+
+datos<-read.table("/home/david/Documentos/Transposable elements/All_mobile_elements_Sylvia.tsv",  header=TRUE, sep="\t")
+
+mobile<-datos$Mobile.elements.Tes
+length(mobile)
+sum(mobile %in% rownames(Matriz24h_raw))
+
+
+mobile<-rownames(srat)
+length(srat)
+sum(mobile %in% rownames(Matriz24h_raw))
+
+```
+
+
+```{r}
+# Aislo los elementos móviles del archivo de Syvia
+
+sylvia<-readGFF("/media/david/Part2/sra/danRer11.gene.allTES_exon_110821_GFP_promoterL2.gtf")
+
+sylvia2<-readGFF("/media/david/Part2/sra/danRer11.gene.allTES_exon_110821_GFP_promoterL2_v11.gtf")
+
+colnames<-colnames(sylvia)
+
+colnames(sylvia2)<-colnames
+
+
+moviles<-datos$Mobile.elements.Tes
+
+sylvia_moviles<-sylvia2[sylvia2$`gene-id` %in% moviles, ] 
+library(Hmisc)
+sylvia_no_moviles<-moviles[moviles %nin% sylvia_moviles$`gene-id`] 
+colnames(sylvia_moviles)<-colnames
+
+Danio<-readGFF("/media/david/Part2/sra/Danio_rerio.GRCz10.86.modified.gtf")
+
+
+export.gff(sylvia_moviles,"danRer11.gene.isolatedTES_exon_110821_GFP_promoterL2.gtf")
+
+danRer.TEs<-readGFF("/home/david/Documentos/Transposable elements/danRer10.gene.isolatedTES_exon_110821_GFP_promoterL2.gtf")
+
+
+export.gff(sylvia4,"danRer11.gene.isolatedTES_exon_110821_GFP_promoterL2.gtf")
+
+
+```
+
+# Fusión de los TEs.gtf con el GTF de Raj.
+
+```{r}
+
+names(danRer.TEs)[names(danRer.TEs) == "gene-id"] <- "gene_id"
+danRer.TEs$gene_version<-NA
+danRer.TEs$gene_name<-NA
+danRer.TEs$gene_source<-NA
+danRer.TEs$gene_biotype<-NA
+danRer.TEs$havana_gene<-NA
+danRer.TEs$havana_gene_version<-NA
+danRer.TEs$transcript_version<-NA
+names(danRer.TEs)[names(danRer.TEs) == "transcriptId"] <- "transcript_id"
+danRer.TEs$transcript_name<-NA
+danRer.TEs$transcript_source<-NA
+danRer.TEs$transcript_biotype<-NA
+danRer.TEs$tag<-NA
+danRer.TEs$exon_number<-NA
+danRer.TEs$exon_id<-NA
+danRer.TEs$exon_version<-NA
+danRer.TEs$havana_transcript<-NA
+danRer.TEs$havana_transcript_version<-NA
+danRer.TEs$protein_id<-NA
+danRer.TEs$protein_version<-NA
+danRer.TEs$gene_name<-danRer.TEs$gene_id
+
+cols_to_keep <- intersect(colnames(Danio),colnames(danRer.TEs))
+sylvia3 <- danRer.TEs[,cols_to_keep, drop=FALSE]
+
+
+library(data.table)
+setcolorder(sylvia3, names(Danio))
+
+sylvia3$seqid<-gsub("chr","",as.character(sylvia3$seqid))
+sylvia3$seqid<-gsub("Un_","",as.character(sylvia3$seqid))
+sylvia3$seqid<-gsub("v",".",as.character(sylvia3$seqid))
+
+
+
+sylvia_raj <- rbind(Danio, sylvia3)
+
+export.gff(sylvia_raj,"danRer10.gene.isolatedTES_GRCz10.86.modified_exon_110821_GFP_promoterL2.gtf")
+
+
+
+sylvia4<-sylvia3[c(1:500000, 4450000:4950000),]
+
+fusion2<-sylvia4[sylvia4$seqid %in% Danio$seqid, ]
+sylvia_raj2 <- rbind(Danio, fusion2)
+
+fusion<-sylvia3[sylvia3$seqid %in% Danio$seqid, ]
+fusion <- rbind(Danio, fusion)
+
+
+export.gff(fusion,"danRer10.gene.isolatedTES_GRCz10.86.modified_exon_110821_GFP_promoterL2_v2.gtf")
+
+export.gff(sylvia_raj2,"danRer10.gene.isolatedTES_GRCz10.86.modified_exon_110821_GFP_promoterL2_v4.gtf")
+
+```
+
+
+
+```{r}
+data_dir <- '/home/david/Documentos/Transposable elements/raw_feature_bc_matrix/'
+list.files(data_dir) # Should show barcodes.tsv, genes.tsv, and matrix.mtx
+expression_matrix <- Read10X(data.dir = data_dir)
+seurat_object4 = CreateSeuratObject(counts = expression_matrix, project = "ZB24h1")
+```
+
+
+# Compruebo que hay contajes de TEs en las nuevas matrices
+
+```{r}
+moviles3<-moviles[moviles %in% seurat_object4@assays$RNA@counts@Dimnames[[1]]] 
+gene<-GetAssayData(object=seurat_object4, slot ='data')[moviles3, 1:3500]
+gene<-data.frame(gene)
+gene<-gene[colSums(gene)>10]
+
+```
+
+
+
+
+```{r}
+data_dir <- '/home/david/Documentos/Transposable elements/raw_feature_bc_matrix_zBr24hpf1/'
+list.files(data_dir) # Should show barcodes.tsv, genes.tsv, and matrix.mtx
+expression_matrix <- Read10X(data.dir = data_dir)
+seurat_object5 = CreateSeuratObject(counts = expression_matrix, project = "ZB24h")
+
+data_dir <- '/home/david/Documentos/Transposable elements/raw_feature_bc_matrix_zBr24hpf2/'
+list.files(data_dir) # Should show barcodes.tsv, genes.tsv, and matrix.mtx
+expression_matrix <- Read10X(data.dir = data_dir)
+seurat_object6 = CreateSeuratObject(counts = expression_matrix, project = "ZB24h")
+
+data_dir <- '/home/david/Documentos/Transposable elements/raw_feature_bc_matrix_zBr24hpf3/'
+list.files(data_dir) # Should show barcodes.tsv, genes.tsv, and matrix.mtx
+expression_matrix <- Read10X(data.dir = data_dir)
+seurat_object7 = CreateSeuratObject(counts = expression_matrix, project = "ZB24h")
+```
+
+
+```{r}
+srat <- merge(seurat_object5, y = c(seurat_object6, seurat_object7), add.cell.ids = c("3.6K", "3.8K", "1.9K"), project = "ZB24h")
+
+```
+
+
+
+# Compruebo que hay contajes de TEs en las nuevas matrices
+
+```{r}
+moviles3<-moviles[moviles %in% srat@assays$RNA@counts@Dimnames[[1]]] 
+gene<-GetAssayData(object=srat, slot ='data')[moviles3, 1:3500]
+gene<-data.frame(gene)
+gene<-gene[colSums(gene)>10]
+
+```
+
+
+
+
+
+```{r}
+data_dir <- '/home/david/Documentos/Transposable elements/filtered_feature_bc_matrix_zBr24hpf1/'
+list.files(data_dir) # Should show barcodes.tsv, genes.tsv, and matrix.mtx
+expression_matrix <- Read10X(data.dir = data_dir)
+seurat_object8 = CreateSeuratObject(counts = expression_matrix, project = "ZB24h")
+
+data_dir <- '/home/david/Documentos/Transposable elements/filtered_feature_bc_matrix_zBr24hpf2/'
+list.files(data_dir) # Should show barcodes.tsv, genes.tsv, and matrix.mtx
+expression_matrix <- Read10X(data.dir = data_dir)
+seurat_object9 = CreateSeuratObject(counts = expression_matrix, project = "ZB24h")
+
+data_dir <- '/home/david/Documentos/Transposable elements/filtered_feature_bc_matrix_zBr24hpf3/'
+list.files(data_dir) # Should show barcodes.tsv, genes.tsv, and matrix.mtx
+expression_matrix <- Read10X(data.dir = data_dir)
+seurat_object10 = CreateSeuratObject(counts = expression_matrix, project = "ZB24h")
+```
+
+
+```{r}
+srat3 <- merge(seurat_object8, y = c(seurat_object9, seurat_object10), project = "ZB24h")
+
+```
+
+
+
+# Compruebo que hay contajes de TEs en las nuevas matrices
+
+```{r}
+moviles3<-moviles[moviles %in% srat3@assays$RNA@counts@Dimnames[[1]]] 
+gene<-GetAssayData(object=srat3, slot ='data')[moviles3, 1:15000]
+gene<-data.frame(gene)
+gene2<-gene[colSums(gene)>10]
+
+```
+
