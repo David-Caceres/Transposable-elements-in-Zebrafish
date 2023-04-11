@@ -265,7 +265,7 @@ gene<-gene[colSums(gene)>10]
 data_dir <- '/home/david/Documentos/Transposable elements/filtered_feature_bc_matrix_zBr24hpf1/'
 list.files(data_dir) # Should show barcodes.tsv, genes.tsv, and matrix.mtx
 expression_matrix <- Read10X(data.dir = data_dir)
-seurat_object8 = CreateSeuratObject(counts = expression_matrix, project = "ZB24h")
+seurat_object8 = CreateSeuratObject(counts = expression_matrix,min.features=49, project = "ZB24h")
 
 data_dir <- '/home/david/Documentos/Transposable elements/filtered_feature_bc_matrix_zBr24hpf2/'
 list.files(data_dir) # Should show barcodes.tsv, genes.tsv, and matrix.mtx
@@ -290,9 +290,23 @@ srat3 <- merge(seurat_object8, y = c(seurat_object9, seurat_object10), project =
 
 ```{r}
 moviles3<-moviles[moviles %in% srat3@assays$RNA@counts@Dimnames[[1]]] 
-gene<-GetAssayData(object=srat3, slot ='data')[moviles3, 1:15000]
-gene<-data.frame(gene)
+gene<-GetAssayData(object=srat3, slot ='data')[moviles3, 1:34469]
+gene2<-data.frame(gene)
 gene2<-gene[colSums(gene)>10]
+
+
+moviles3<-moviles[moviles %in% seurat_object8@assays$RNA@counts@Dimnames[[1]]] 
+gene<-GetAssayData(object=seurat_object8, slot ='data')[moviles3, 1:4518]
+gene3<-data.frame(gene)
+
+moviles3<-moviles[moviles %in% srat3@assays$RNA@counts@Dimnames[[1]]] 
+gene<-GetAssayData(object=seurat_object9, slot ='data')[moviles3, 1:4518]
+gene4<-data.frame(gene)
+
+moviles3<-moviles[moviles %in% srat3@assays$RNA@counts@Dimnames[[1]]] 
+gene<-GetAssayData(object=seurat_object10, slot ='data')[moviles3, 1:2920]
+gene5<-data.frame(gene)
+
 
 ```
 
